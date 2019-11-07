@@ -45,7 +45,6 @@ function Invoke-DNS-Change
                     Write-Host "Process is terminated, Restarting function ..."
                     Invoke-DNS-Change
                 }
-                Write-Host "Job complete."
             }
             else {
                 Write-Host "Canceled."

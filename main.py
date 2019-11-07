@@ -15,16 +15,26 @@ def _execute_thread(addr):
         raise TypeError("'addr' must iterable-type")
 
     print("Connecting TTP list database ...")
-
     _database_controller = DatabaseController().initialize()
     if _database_controller is not None:
         print("Connected TTP list database!")
+        if len(_database_controller.get_ttp_list()) == 0:
+            print("[Warning] No provided TTP server, Generating default TTP server ...")
+            _database_controller.insert_ttp_list("1.1.1.1", "Cloudflare DNS", "-")
+            _database_controller.insert_ttp_list("8.8.8.8", "Google Public DNS", "-")
+            _database_controller.insert_ttp_list("9.9.9.9", "IBM Quad9 DNS", "-")
+
+        print("Loading TTP(Trusted-Third Party) server list ...")
+        data_list = _database_controller.get_ttp_list()
+        if len(data_list) == 0:
+            raise OperationalError("Internal error, TTP list is empty!")
+        _database_controller.configure_ttp(True)
     else:
         from pymysql import OperationalError
         raise OperationalError("Connecting the database was failed")
     
     sniffer = dns_provider.Sniffer()
-    sniffer.await_dns_packet(addr[0], addr[1])
+    sniffer.await_dns_packet(addr[0], addr[1], _database_controller)
 
 def start_program():
     print("  _____  _   _  _____ _______ _______ _____ ")
@@ -33,7 +43,8 @@ def start_program():
     print(" | |  | | . ` |\___ \   | |     | |  |  ___/ ")
     print(" | |__| | |\  |____) |  | |     | |  | |     ")
     print(" |_____/|_| \_|_____/   |_|     |_|  |_| ")
-    print("DNS TTP(Third-Trusted Party) provider")
+    print("DNS TTP(Third-Trusted Party) provider by Ruskonert@gmail.com")
+    print("For capstone project.")
     print("==========================")
 
 def main(argc : int, argv : list):

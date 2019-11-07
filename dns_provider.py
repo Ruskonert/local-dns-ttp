@@ -41,13 +41,12 @@ class Sniffer:
         self._work = threading.Thread(target=Sniffer._internal_service, args=[self,])
 
     @staticmethod
-    def _interal_receive(sock, addr, data):
+    def _interal_receive(addr, data):
         if Sniffer.dns_sock is None:
             Sniffer.dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         Sniffer.dns_sock.sendto(data, ('1.1.1.1', 53))
         data_recv, recv_addr = Sniffer.dns_sock.recvfrom(65535)
-        sock.sendto(data_recv, addr)
-        sock.recvfrom(65535)
+        Sniffer.dns_sock.sendto(data_recv, addr)
     
     def _internal_service(self):
         for thread in self._threads:
@@ -72,45 +71,61 @@ class Sniffer:
     def kill(self):
         self._running = False
 
-    def await_dns_packet(self, ip_addr, port):
+    def output_dns_info(self, data):
+        try:
+            for i in range(0, len(data)):
+                print("{:02x}".format(data[i]), end=' ')
+                if (i + 1) % 16 == 0:
+                    print()
+
+            print("\nRESULT: ")
+            data_unpack = struct.unpack("!HHHHHH{}s".format(len(data) - 12), data)
+            dns_queries_info = data_unpack[-1]
+
+            sep = len(dns_queries_info)
+            dns_queries_type = dns_queries_info[sep-4:sep]
+            dns_type, dns_class = struct.unpack("!HH", dns_queries_type)
+            dns_record_type = DnsRecordType.get_type(dns_type)
+            dns_class_type = DnsRecordType.get_class(dns_class)
+
+            print("Transaction id: 0x{:04X}".format(data_unpack[0]))
+            print("Flags: 0x{:04X}".format(data_unpack[1]))
+            print("Questions: {:x}".format(data_unpack[2]))
+            print("Answer RRs: {:x}".format(data_unpack[3]))
+            print("Authority RRs: {:x}".format(data_unpack[4]))
+            print("Additional RRs: {:x}".format(data_unpack[5]))
+
+            print("Query Type: {} (0x{:04X})".format(dns_record_type[0], dns_record_type[1]))
+            print("Query Class: {} (0x{:04X})".format(dns_class_type[0], dns_class_type[1]))
+            print("Request Domain: {}".format(Sniffer.translate_to_url(dns_queries_info)))
+        except struct.error:
+            print("warning: Malformed packet or unregistered format -> ignored")
+
+
+    def await_dns_packet(self, ip_addr, port, service):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         recv_address = (ip_addr, int(port))
         sock.bind(recv_address)
+        #Sniffer.dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         while True:
-            data, addr = sock.recvfrom(4096)
+            data, addr = sock.recvfrom(65535)
+            print("\n[{}] -> {}:{}".format(str(datetime.now()), addr[0], addr[1]))
+            self.output_dns_info(data)
+
+            #thread = threading.Thread(target=Sniffer._interal_receive, args=[addr, data])
+            #thread.start()
             try:
-                print("\n[{}] -> {}:{}".format(str(datetime.now()), addr[0], addr[1]))
-                for i in range(0, len(data)):
-                    print("{:02x}".format(data[i]), end=' ')
-                    if (i + 1) % 16 == 0:
-                        print()
+                for addr_info in service._sockets.keys():
+                    alter_sock = service._sockets[addr_info]
+                    alter_sock.sendto(data, (addr_info[0], 53))
+                    data_recv = alter_sock.recvfrom(65535)
+                    #print("received DNS Query -> {}".format(addr_info[1]))
+                sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
+                sock2.sendto(data_recv[0], addr)
+                sock2.close()
+            except Exception as e:
+                print(e)
 
-                print("\nRESULT: ")
-                data_unpack = struct.unpack("!HHHHHH{}s".format(len(data) - 12), data)
-                dns_queries_info = data_unpack[-1]
 
-                sep = len(dns_queries_info)
-                dns_queries_type = dns_queries_info[sep-4:sep]
-                dns_type, dns_class = struct.unpack("!HH", dns_queries_type)
-                dns_record_type = DnsRecordType.get_type(dns_type)
-                dns_class_type = DnsRecordType.get_class(dns_class)
-
-                print("Transaction id: 0x{:04X}".format(data_unpack[0]))
-                print("Flags: 0x{:04X}".format(data_unpack[1]))
-                print("Questions: {:x}".format(data_unpack[2]))
-                print("Answer RRs: {:x}".format(data_unpack[3]))
-                print("Authority RRs: {:x}".format(data_unpack[4]))
-                print("Additional RRs: {:x}".format(data_unpack[5]))
-
-                print("Query Type: {} (0x{:04X})".format(dns_record_type[0], dns_record_type[1]))
-                print("Query Class: {} (0x{:04X})".format(dns_class_type[0], dns_class_type[1]))
-                print("Request Domain: {}".format(Sniffer.translate_to_url(dns_queries_info)))
-                thread = threading.Thread(target=Sniffer._interal_receive, args=[sock, addr, data])
-                thread.start()
-                #self._internal_service()
-                
-
-            except struct.error:
-                print("warning: Malformed packet or unregistered format -> ignored")
                 
 
