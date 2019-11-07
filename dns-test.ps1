@@ -29,19 +29,23 @@ function Invoke-DNS-Change
 
             $index = $configuration.interfaceIndex
             Set-DNSClientServerAddress -interfaceindex $index -ServerAddress ("127.0.0.1")
-            $answer = Read-Host -Prompt 'Do you want to running the DNS address as default? (Y/N) '
+            $answer = Read-Host -Prompt 'Do you want to reset the DNS address as default? (Y/N) '
             
             if($answer -ieq "Y") {
                 Set-DNSClientServerAddress -interfaceindex $index -ResetServerAddress
                 Write-Host "You dns server is change -> 'default'."
             }
             elseif ($answer -ieq "N") {
-                Set-DNSClientServerAddress -interfaceindex $index -ServerAddress ("127.0.0.1")
-                Write-Host "You dns server is change -> 'localhost', Therefore, Trying turn on the local DNS server ..."
-                Start-Process -FilePath "python.exe" -ArgumentList "main.py 0.0.0.0 53" -Wait
-                
-                Write-Host "Process is terminated, Restarting function ..."
-                Invoke-DNS-Change
+                $answer = Read-Host -Prompt 'Do you want to running Local DNS Server as TTP? (Y) '
+                if($answer -ieq "Y") {
+                    Set-DNSClientServerAddress -interfaceindex $index -ServerAddress ("127.0.0.1")
+                    Write-Host "You dns server is -> 'localhost', Therefore, Trying turn on the local DNS server ..."
+                    Start-Process -FilePath "python.exe" -ArgumentList "main.py 0.0.0.0 53" -Wait
+    
+                    Write-Host "Process is terminated, Restarting function ..."
+                    Invoke-DNS-Change
+                }
+                Write-Host "Job complete."
             }
             else {
                 Write-Host "Canceled."
