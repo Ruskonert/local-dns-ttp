@@ -106,12 +106,14 @@ class Sniffer:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         recv_address = (ip_addr, int(port))
         sock.bind(recv_address)
+
         #Sniffer.dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         while True:
             data, addr = sock.recvfrom(65535)
             print("\n[{}] -> {}:{}".format(str(datetime.now()), addr[0], addr[1]))
             self.output_dns_info(data)
 
+            
             #thread = threading.Thread(target=Sniffer._interal_receive, args=[addr, data])
             #thread.start()
             try:
