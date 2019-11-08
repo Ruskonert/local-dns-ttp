@@ -101,6 +101,11 @@ class Sniffer:
         except struct.error:
             print("warning: Malformed packet or unregistered format -> ignored")
 
+    @staticmethod
+    def _internal(data, addr):
+            sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
+            sock2.sendto(data_recv[0], addr)
+            sock2.close()
 
     def await_dns_packet(self, ip_addr, port, service):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -122,9 +127,7 @@ class Sniffer:
                     alter_sock.sendto(data, (addr_info[0], 53))
                     data_recv = alter_sock.recvfrom(65535)
                     #print("received DNS Query -> {}".format(addr_info[1]))
-                sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
-                sock2.sendto(data_recv[0], addr)
-                sock2.close()
+                    threading.Thread(target=Sniffer._internal(data_recv[0], addr,))
             except Exception as e:
                 print(e)
 
