@@ -3,6 +3,7 @@ import struct
 import os
 import sys
 import threading
+import dns_service
 
 from datetime import date, time, datetime
 
@@ -18,7 +19,7 @@ class DnsRecordType:
             16: "TXT",
             12: "PTR",
             }
-        record_name = types.get(dec, "UNDEFINED")
+        record_name = types.get(dec, "Unknown")
         return record_name, dec
 
     @staticmethod
@@ -39,14 +40,6 @@ class Sniffer:
         self._threads = []
         self._running = True
         self._work = threading.Thread(target=Sniffer._internal_service, args=[self,])
-
-    @staticmethod
-    def _interal_receive(addr, data):
-        if Sniffer.dns_sock is None:
-            Sniffer.dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        Sniffer.dns_sock.sendto(data, ('1.1.1.1', 53))
-        data_recv, recv_addr = Sniffer.dns_sock.recvfrom(65535)
-        Sniffer.dns_sock.sendto(data_recv, addr)
     
     def _internal_service(self):
         for thread in self._threads:
@@ -91,6 +84,7 @@ class Sniffer:
             print("Transaction id: 0x{:04X}".format(data_unpack[0]))
             print("Flags: 0x{:04X}".format(data_unpack[1]))
             print("Questions: {:x}".format(data_unpack[2]))
+
             print("Answer RRs: {:x}".format(data_unpack[3]))
             print("Authority RRs: {:x}".format(data_unpack[4]))
             print("Additional RRs: {:x}".format(data_unpack[5]))
@@ -101,36 +95,24 @@ class Sniffer:
         except struct.error:
             print("warning: Malformed packet or unregistered format -> ignored")
 
-    @staticmethod
-    def _internal(data, addr):
-            sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
-            sock2.sendto(data_recv[0], addr)
-            sock2.close()
-
     def await_dns_packet(self, ip_addr, port, service):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         recv_address = (ip_addr, int(port))
         sock.bind(recv_address)
-
-        #Sniffer.dns_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         while True:
+            # Capturing packet data, which types 'DNS'
             data, addr = sock.recvfrom(65535)
             print("\n[{}] -> {}:{}".format(str(datetime.now()), addr[0], addr[1]))
+
+            # Output the information about packet
             self.output_dns_info(data)
+            def _internal():
+                provider = dns_service.DnsQueryProviderTask()
+                resp_information = provider.request_dns_response(data)
+                for k in resp_information.keys():
+                    sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    sock2.sendto(resp_information[k][0], addr)
+                    sock2.close()
+            threading.Thread(target=_internal).start()
 
-            
-            #thread = threading.Thread(target=Sniffer._interal_receive, args=[addr, data])
-            #thread.start()
-            try:
-                for addr_info in service._sockets.keys():
-                    alter_sock = service._sockets[addr_info]
-                    alter_sock.sendto(data, (addr_info[0], 53))
-                    data_recv = alter_sock.recvfrom(65535)
-                    #print("received DNS Query -> {}".format(addr_info[1]))
-                    threading.Thread(target=Sniffer._internal(data_recv[0], addr,))
-            except Exception as e:
-                print(e)
-
-
-                
 
