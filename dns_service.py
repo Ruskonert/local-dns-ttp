@@ -95,7 +95,7 @@ class DatabaseController:
 
 
     def initialize(self):
-        self._conn = pymysql.connect(host='127.0.0.1', user='root', password='12345678', db='dns', charset='utf8')
+        self._conn = pymysql.connect(host='127.0.0.1', user='root', password='1234', db='dns', charset='utf8')
         self.cursor = self._conn.cursor()
         return self
         

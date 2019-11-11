@@ -3,7 +3,7 @@ import struct
 import os
 import sys
 import threading
-import dns_service
+import dns_async
 
 from datetime import date, time, datetime
 
@@ -76,6 +76,7 @@ class Sniffer:
             dns_queries_info = data_unpack[-1]
 
             sep = len(dns_queries_info)
+
             dns_queries_type = dns_queries_info[sep-4:sep]
             dns_type, dns_class = struct.unpack("!HH", dns_queries_type)
             dns_record_type = DnsRecordType.get_type(dns_type)
@@ -92,6 +93,7 @@ class Sniffer:
             print("Query Type: {} (0x{:04X})".format(dns_record_type[0], dns_record_type[1]))
             print("Query Class: {} (0x{:04X})".format(dns_class_type[0], dns_class_type[1]))
             print("Request Domain: {}".format(Sniffer.translate_to_url(dns_queries_info)))
+
         except struct.error:
             print("warning: Malformed packet or unregistered format -> ignored")
 
@@ -106,13 +108,8 @@ class Sniffer:
 
             # Output the information about packet
             self.output_dns_info(data)
-            def _internal():
-                provider = dns_service.DnsQueryProviderTask()
-                resp_information = provider.request_dns_response(data)
-                for k in resp_information.keys():
-                    sock2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    sock2.sendto(resp_information[k][0], addr)
-                    sock2.close()
-            threading.Thread(target=_internal).start()
 
+
+            resp = dns_async.DnsAsyncTaskResponser(service)
+            resp.start_dns_request(data)
 

