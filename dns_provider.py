@@ -3,9 +3,9 @@ import struct
 import os
 import sys
 import threading
-import dns_async
 
 from datetime import date, time, datetime
+from dns_async import DnsAsyncTaskResponser
 
 class DnsRecordType:
     @staticmethod
@@ -108,8 +108,4 @@ class Sniffer:
 
             # Output the information about packet
             self.output_dns_info(data)
-
-
-            resp = dns_async.DnsAsyncTaskResponser(service)
-            resp.start_dns_request(data)
-
+            DnsAsyncTaskResponser(service).start_dns_request(data, addr)

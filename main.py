@@ -1,6 +1,5 @@
 import os
 import sys
-import dns_provider
 import threading
 
 from dns_service import DatabaseController
@@ -27,13 +26,13 @@ def _execute_thread(addr):
         print("Loading TTP(Trusted-Third Party) server list ...")
         data_list = _database_controller.get_ttp_list()
         if len(data_list) == 0:
-            raise OperationalError("Internal error, TTP list is empty!")
+            raise AttributeError("Internal error, TTP list is empty!")
         _database_controller.configure_ttp(True)
     else:
         from pymysql import OperationalError
         raise OperationalError("Connecting the database was failed")
-    
-    sniffer = dns_provider.Sniffer()
+    from dns_provider import Sniffer
+    sniffer = Sniffer()
     sniffer.await_dns_packet(addr[0], addr[1], _database_controller)
 
 def start_program():
